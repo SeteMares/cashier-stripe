@@ -99,7 +99,7 @@ class PaymentMethod implements Arrayable, Jsonable, JsonSerializable
      *
      * @return array
      */
-    public function jsonSerialize()
+    public function jsonSerialize(): mixed
     {
         return $this->toArray();
     }
