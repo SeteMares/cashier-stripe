@@ -2,7 +2,7 @@
 
 namespace Laravel\Cashier;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Support\Collection;
@@ -68,11 +68,13 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      * Get a Carbon date for the invoice.
      *
      * @param  \DateTimeZone|string  $timezone
-     * @return \Carbon\Carbon
+     * @return \Illuminate\Support\Carbon;
      */
     public function date($timezone = null)
     {
-        $carbon = Carbon::createFromTimestampUTC($this->invoice->created ?? $this->invoice->date);
+        $carbon = Carbon::createFromTimestampUTC(
+            $this->invoice->created ?? $this->invoice->date
+        );
 
         return $timezone ? $carbon->setTimezone($timezone) : $carbon;
     }
@@ -164,7 +166,7 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      */
     public function rawDiscount()
     {
-        if (! isset($this->invoice->discount)) {
+        if (!isset($this->invoice->discount)) {
             return 0;
         }
 
@@ -197,7 +199,8 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
     public function couponName()
     {
         if (isset($this->invoice->discount)) {
-            return $this->invoice->discount->coupon->name ?: $this->invoice->discount->coupon->id;
+            return $this->invoice->discount->coupon->name ?:
+                $this->invoice->discount->coupon->id;
         }
     }
 
@@ -208,7 +211,8 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      */
     public function discountIsPercentage()
     {
-        return isset($this->invoice->discount) && isset($this->invoice->discount->coupon->percent_off);
+        return isset($this->invoice->discount) &&
+            isset($this->invoice->discount->coupon->percent_off);
     }
 
     /**
@@ -280,7 +284,7 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      */
     public function taxes()
     {
-        if (! is_null($this->taxes)) {
+        if (!is_null($this->taxes)) {
             return $this->taxes;
         }
 
@@ -289,7 +293,11 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
         return $this->taxes = collect($this->invoice->total_tax_amounts)
             ->sortByDesc('inclusive')
             ->map(function (object $taxAmount) {
-                return new Tax($taxAmount->amount, $this->invoice->currency, $taxAmount->tax_rate);
+                return new Tax(
+                    $taxAmount->amount,
+                    $this->invoice->currency,
+                    $taxAmount->tax_rate
+                );
             })
             ->all();
     }
@@ -358,11 +366,14 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
             $this->items = new Collection($this->invoice->lines->autoPagingIterator());
         }
 
-        return $this->items->filter(function (StripeInvoiceLineItem $item) use ($type) {
-            return $item->type === $type;
-        })->map(function (StripeInvoiceLineItem $item) {
-            return new InvoiceLineItem($this, $item);
-        })->all();
+        return $this->items
+            ->filter(function (StripeInvoiceLineItem $item) use ($type) {
+                return $item->type === $type;
+            })
+            ->map(function (StripeInvoiceLineItem $item) {
+                return new InvoiceLineItem($this, $item);
+            })
+            ->all();
     }
 
     /**
@@ -373,22 +384,28 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
     protected function refreshWithExpandedTaxRates()
     {
         if ($this->invoice->id) {
-            $this->invoice = StripeInvoice::retrieve([
-                'id' => $this->invoice->id,
-                'expand' => [
-                    'lines.data.tax_amounts.tax_rate',
-                    'total_tax_amounts.tax_rate',
+            $this->invoice = StripeInvoice::retrieve(
+                [
+                    'id' => $this->invoice->id,
+                    'expand' => [
+                        'lines.data.tax_amounts.tax_rate',
+                        'total_tax_amounts.tax_rate',
+                    ],
                 ],
-            ], $this->owner->stripeOptions());
+                $this->owner->stripeOptions()
+            );
         } else {
             // If no invoice ID is present then assume this is the customer's upcoming invoice...
-            $this->invoice = StripeInvoice::upcoming([
-                'customer' => $this->owner->stripe_id,
-                'expand' => [
-                    'lines.data.tax_amounts.tax_rate',
-                    'total_tax_amounts.tax_rate',
+            $this->invoice = StripeInvoice::upcoming(
+                [
+                    'customer' => $this->owner->stripe_id,
+                    'expand' => [
+                        'lines.data.tax_amounts.tax_rate',
+                        'total_tax_amounts.tax_rate',
+                    ],
                 ],
-            ], $this->owner->stripeOptions());
+                $this->owner->stripeOptions()
+            );
         }
     }
 
@@ -411,7 +428,10 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      */
     public function finalize(array $options = [])
     {
-        $this->invoice = $this->invoice->finalizeInvoice($options, $this->owner->stripeOptions());
+        $this->invoice = $this->invoice->finalizeInvoice(
+            $options,
+            $this->owner->stripeOptions()
+        );
 
         return $this;
     }
@@ -463,7 +483,10 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      */
     public function markUncollectible(array $options = [])
     {
-        $this->invoice = $this->invoice->markUncollectible($options, $this->owner->stripeOptions());
+        $this->invoice = $this->invoice->markUncollectible(
+            $options,
+            $this->owner->stripeOptions()
+        );
 
         return $this;
     }
@@ -549,11 +572,14 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      */
     public function view(array $data)
     {
-        return View::make('cashier::receipt', array_merge($data, [
-            'invoice' => $this,
-            'owner' => $this->owner,
-            'user' => $this->owner,
-        ]));
+        return View::make(
+            'cashier::receipt',
+            array_merge($data, [
+                'invoice' => $this,
+                'owner' => $this->owner,
+                'user' => $this->owner,
+            ])
+        );
     }
 
     /**
@@ -581,7 +607,7 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
      */
     public function download(array $data)
     {
-        $filename = $data['product'].'_'.$this->date()->month.'_'.$this->date()->year;
+        $filename = $data['product'] . '_' . $this->date()->month . '_' . $this->date()->year;
 
         return $this->downloadAs($filename, $data);
     }
@@ -597,7 +623,7 @@ class Invoice implements Arrayable, Jsonable, JsonSerializable
     {
         return new Response($this->pdf($data), 200, [
             'Content-Description' => 'File Transfer',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'.pdf"',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '.pdf"',
             'Content-Transfer-Encoding' => 'binary',
             'Content-Type' => 'application/pdf',
             'X-Vapor-Base64-Encode' => 'True',

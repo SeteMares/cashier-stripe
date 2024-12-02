@@ -2,7 +2,7 @@
 
 namespace Laravel\Cashier;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -47,7 +47,6 @@ class Subscription extends Model
         'updated_at' => 'datetime',
     ];
 
-
     /**
      * The date on which the billing cycle should be anchored.
      *
@@ -74,7 +73,7 @@ class Subscription extends Model
     {
         $model = config('cashier.model');
 
-        return $this->belongsTo($model, (new $model)->getForeignKey());
+        return $this->belongsTo($model, (new $model())->getForeignKey());
     }
 
     /**
@@ -104,7 +103,7 @@ class Subscription extends Model
      */
     public function hasSinglePlan()
     {
-        return ! $this->hasMultiplePlans();
+        return !$this->hasMultiplePlans();
     }
 
     /**
@@ -199,7 +198,8 @@ class Subscription extends Model
         return (is_null($this->ends_at) || $this->onGracePeriod()) &&
             $this->stripe_status !== StripeSubscription::STATUS_INCOMPLETE &&
             $this->stripe_status !== StripeSubscription::STATUS_INCOMPLETE_EXPIRED &&
-            (! Cashier::$deactivatePastDue || $this->stripe_status !== StripeSubscription::STATUS_PAST_DUE) &&
+            (!Cashier::$deactivatePastDue ||
+                $this->stripe_status !== StripeSubscription::STATUS_PAST_DUE) &&
             $this->stripe_status !== StripeSubscription::STATUS_UNPAID;
     }
 
@@ -211,12 +211,13 @@ class Subscription extends Model
      */
     public function scopeActive($query)
     {
-        $query->where(function ($query) {
-            $query->whereNull('ends_at')
-                ->orWhere(function ($query) {
+        $query
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere(function ($query) {
                     $query->onGracePeriod();
                 });
-        })->where('stripe_status', '!=', StripeSubscription::STATUS_INCOMPLETE)
+            })
+            ->where('stripe_status', '!=', StripeSubscription::STATUS_INCOMPLETE)
             ->where('stripe_status', '!=', StripeSubscription::STATUS_INCOMPLETE_EXPIRED)
             ->where('stripe_status', '!=', StripeSubscription::STATUS_UNPAID);
 
@@ -246,7 +247,7 @@ class Subscription extends Model
      */
     public function recurring()
     {
-        return ! $this->onTrial() && ! $this->cancelled();
+        return !$this->onTrial() && !$this->cancelled();
     }
 
     /**
@@ -267,7 +268,7 @@ class Subscription extends Model
      */
     public function cancelled()
     {
-        return ! is_null($this->ends_at);
+        return !is_null($this->ends_at);
     }
 
     /**
@@ -299,7 +300,7 @@ class Subscription extends Model
      */
     public function ended()
     {
-        return $this->cancelled() && ! $this->onGracePeriod();
+        return $this->cancelled() && !$this->onGracePeriod();
     }
 
     /**
@@ -391,7 +392,9 @@ class Subscription extends Model
         $this->guardAgainstIncomplete();
 
         if ($plan) {
-            $this->findItemOrFail($plan)->setProrationBehavior($this->prorationBehavior)->incrementQuantity($count);
+            $this->findItemOrFail($plan)
+                ->setProrationBehavior($this->prorationBehavior)
+                ->incrementQuantity($count);
 
             return $this->refresh();
         }
@@ -434,7 +437,9 @@ class Subscription extends Model
         $this->guardAgainstIncomplete();
 
         if ($plan) {
-            $this->findItemOrFail($plan)->setProrationBehavior($this->prorationBehavior)->decrementQuantity($count);
+            $this->findItemOrFail($plan)
+                ->setProrationBehavior($this->prorationBehavior)
+                ->decrementQuantity($count);
 
             return $this->refresh();
         }
@@ -458,7 +463,9 @@ class Subscription extends Model
         $this->guardAgainstIncomplete();
 
         if ($plan) {
-            $this->findItemOrFail($plan)->setProrationBehavior($this->prorationBehavior)->updateQuantity($quantity);
+            $this->findItemOrFail($plan)
+                ->setProrationBehavior($this->prorationBehavior)
+                ->updateQuantity($quantity);
 
             return $this->refresh();
         }
@@ -490,11 +497,14 @@ class Subscription extends Model
      */
     public function reportUsage($quantity = 1, $timestamp = null, $plan = null)
     {
-        if (! $plan) {
+        if (!$plan) {
             $this->guardAgainstMultiplePlans();
         }
 
-        return $this->findItemOrFail($plan ?? $this->stripe_plan)->reportUsage($quantity, $timestamp);
+        return $this->findItemOrFail($plan ?? $this->stripe_plan)->reportUsage(
+            $quantity,
+            $timestamp
+        );
     }
 
     /**
@@ -519,7 +529,7 @@ class Subscription extends Model
      */
     public function usageRecords($options = [], $plan = null)
     {
-        if (! $plan) {
+        if (!$plan) {
             $this->guardAgainstMultiplePlans();
         }
 
@@ -600,8 +610,10 @@ class Subscription extends Model
      */
     public function extendTrial(CarbonInterface $date)
     {
-        if (! $date->isFuture()) {
-            throw new InvalidArgumentException("Extending a subscription's trial requires a date in the future.");
+        if (!$date->isFuture()) {
+            throw new InvalidArgumentException(
+                "Extending a subscription's trial requires a date in the future."
+            );
         }
 
         $this->updateStripeSubscription([
@@ -627,18 +639,20 @@ class Subscription extends Model
      */
     public function swap($plans, $options = [])
     {
-        if (empty($plans = (array) $plans)) {
-            throw new InvalidArgumentException('Please provide at least one plan when swapping.');
+        if (empty(($plans = (array) $plans))) {
+            throw new InvalidArgumentException(
+                'Please provide at least one plan when swapping.'
+            );
         }
 
         $this->guardAgainstIncomplete();
 
-        $items = $this->mergeItemsThatShouldBeDeletedDuringSwap(
-            $this->parseSwapPlans($plans)
-        );
+        $items = $this->mergeItemsThatShouldBeDeletedDuringSwap($this->parseSwapPlans($plans));
 
         $stripeSubscription = StripeSubscription::update(
-            $this->stripe_id, $this->getSwapOptions($items, $options), $this->owner->stripeOptions()
+            $this->stripe_id,
+            $this->getSwapOptions($items, $options),
+            $this->owner->stripeOptions()
         );
 
         /** @var \Stripe\SubscriptionItem $firstItem */
@@ -653,12 +667,15 @@ class Subscription extends Model
         ])->save();
 
         foreach ($stripeSubscription->items as $item) {
-            $this->items()->updateOrCreate([
-                'stripe_id' => $item->id,
-            ], [
-                'stripe_plan' => $item->plan->id,
-                'quantity' => $item->quantity,
-            ]);
+            $this->items()->updateOrCreate(
+                [
+                    'stripe_id' => $item->id,
+                ],
+                [
+                    'stripe_plan' => $item->plan->id,
+                    'quantity' => $item->quantity,
+                ]
+            );
         }
 
         // Delete items that aren't attached to the subscription anymore...
@@ -667,9 +684,7 @@ class Subscription extends Model
         $this->unsetRelation('items');
 
         if ($this->hasIncompletePayment()) {
-            (new Payment(
-                $stripeSubscription->latest_invoice->payment_intent
-            ))->validate();
+            (new Payment($stripeSubscription->latest_invoice->payment_intent))->validate();
         }
 
         return $this;
@@ -702,16 +717,23 @@ class Subscription extends Model
     {
         $isSinglePlanSwap = $this->hasSinglePlan() && count($plans) === 1;
 
-        return collect($plans)->mapWithKeys(function ($options, $plan) use ($isSinglePlanSwap) {
+        return collect($plans)->mapWithKeys(function ($options, $plan) use (
+            $isSinglePlanSwap
+        ) {
             $plan = is_string($options) ? $options : $plan;
 
             $options = is_string($options) ? [] : $options;
 
-            return [$plan => array_merge([
-                'plan' => $plan,
-                'quantity' => $isSinglePlanSwap ? $this->quantity : null,
-                'tax_rates' => $this->getPlanTaxRatesForPayload($plan),
-            ], $options)];
+            return [
+                $plan => array_merge(
+                    [
+                        'plan' => $plan,
+                        'quantity' => $isSinglePlanSwap ? $this->quantity : null,
+                        'tax_rates' => $this->getPlanTaxRatesForPayload($plan),
+                    ],
+                    $options
+                ),
+            ];
         });
     }
 
@@ -727,7 +749,7 @@ class Subscription extends Model
         foreach ($this->asStripeSubscription()->items->data as $stripeSubscriptionItem) {
             $plan = $stripeSubscriptionItem->plan;
 
-            if (! $item = $items->get($plan->id, [])) {
+            if (!($item = $items->get($plan->id, []))) {
                 $item['deleted'] = true;
 
                 if ($plan->usage_type == 'metered') {
@@ -757,19 +779,22 @@ class Subscription extends Model
             'expand' => ['latest_invoice.payment_intent'],
         ];
 
-        if ($payload['payment_behavior'] !== StripeSubscription::PAYMENT_BEHAVIOR_PENDING_IF_INCOMPLETE) {
+        if (
+            $payload['payment_behavior'] !==
+            StripeSubscription::PAYMENT_BEHAVIOR_PENDING_IF_INCOMPLETE
+        ) {
             $payload['cancel_at_period_end'] = false;
         }
 
         $payload = array_merge($payload, $options);
 
-        if (! is_null($this->billingCycleAnchor)) {
+        if (!is_null($this->billingCycleAnchor)) {
             $payload['billing_cycle_anchor'] = $this->billingCycleAnchor;
         }
 
         $payload['trial_end'] = $this->onTrial()
-                        ? $this->trial_ends_at->getTimestamp()
-                        : 'now';
+            ? $this->trial_ends_at->getTimestamp()
+            : 'now';
 
         return $payload;
     }
@@ -794,13 +819,18 @@ class Subscription extends Model
 
         $subscription = $this->asStripeSubscription();
 
-        $item = $subscription->items->create(array_merge([
-            'plan' => $plan,
-            'quantity' => $quantity,
-            'tax_rates' => $this->getPlanTaxRatesForPayload($plan),
-            'payment_behavior' => $this->paymentBehavior(),
-            'proration_behavior' => $this->prorateBehavior(),
-        ], $options));
+        $item = $subscription->items->create(
+            array_merge(
+                [
+                    'plan' => $plan,
+                    'quantity' => $quantity,
+                    'tax_rates' => $this->getPlanTaxRatesForPayload($plan),
+                    'payment_behavior' => $this->paymentBehavior(),
+                    'proration_behavior' => $this->prorateBehavior(),
+                ],
+                $options
+            )
+        );
 
         $this->items()->create([
             'stripe_id' => $item->id,
@@ -854,10 +884,12 @@ class Subscription extends Model
 
         $stripeItem = $this->findItemOrFail($plan)->asStripeSubscriptionItem();
 
-        $stripeItem->delete(array_filter([
-            'clear_usage' => $stripeItem->plan->usage_type === 'metered' ? true : null,
-            'proration_behavior' => $this->prorateBehavior(),
-        ]));
+        $stripeItem->delete(
+            array_filter([
+                'clear_usage' => $stripeItem->plan->usage_type === 'metered' ? true : null,
+                'proration_behavior' => $this->prorateBehavior(),
+            ])
+        );
 
         $this->items()->where('stripe_plan', $plan)->delete();
 
@@ -896,9 +928,7 @@ class Subscription extends Model
         if ($this->onTrial()) {
             $this->ends_at = $this->trial_ends_at;
         } else {
-            $this->ends_at = Carbon::createFromTimestamp(
-                $subscription->current_period_end
-            );
+            $this->ends_at = Carbon::createFromTimestamp($subscription->current_period_end);
         }
 
         $this->save();
@@ -992,8 +1022,10 @@ class Subscription extends Model
      */
     public function resume()
     {
-        if (! $this->onGracePeriod()) {
-            throw new LogicException('Unable to resume subscription that is not within grace period.');
+        if (!$this->onGracePeriod()) {
+            throw new LogicException(
+                'Unable to resume subscription that is not within grace period.'
+            );
         }
 
         $subscription = $this->asStripeSubscription();
@@ -1040,7 +1072,9 @@ class Subscription extends Model
     public function invoice(array $options = [])
     {
         try {
-            return $this->user->invoice(array_merge($options, ['subscription' => $this->stripe_id]));
+            return $this->user->invoice(
+                array_merge($options, ['subscription' => $this->stripe_id])
+            );
         } catch (IncompletePayment $exception) {
             // Set the new Stripe subscription status immediately when payment fails...
             $this->fill([
@@ -1099,7 +1133,8 @@ class Subscription extends Model
         foreach ($this->items as $item) {
             $stripeSubscriptionItem = $item->asStripeSubscriptionItem();
 
-            $stripeSubscriptionItem->tax_rates = $this->getPlanTaxRatesForPayload($item->stripe_plan) ?: null;
+            $stripeSubscriptionItem->tax_rates =
+                $this->getPlanTaxRatesForPayload($item->stripe_plan) ?: null;
 
             $stripeSubscriptionItem->proration_behavior = $this->prorateBehavior();
 
@@ -1140,9 +1175,7 @@ class Subscription extends Model
         $subscription = $this->asStripeSubscription(['latest_invoice.payment_intent']);
 
         if ($invoice = $subscription->latest_invoice) {
-            return $invoice->payment_intent
-                ? new Payment($invoice->payment_intent)
-                : null;
+            return $invoice->payment_intent ? new Payment($invoice->payment_intent) : null;
         }
     }
 
@@ -1185,7 +1218,9 @@ class Subscription extends Model
     public function updateStripeSubscription(array $options = [])
     {
         return StripeSubscription::update(
-            $this->stripe_id, $options, $this->owner->stripeOptions()
+            $this->stripe_id,
+            $options,
+            $this->owner->stripeOptions()
         );
     }
 
@@ -1198,7 +1233,8 @@ class Subscription extends Model
     public function asStripeSubscription(array $expand = [])
     {
         return StripeSubscription::retrieve(
-            ['id' => $this->stripe_id, 'expand' => $expand], $this->owner->stripeOptions()
+            ['id' => $this->stripe_id, 'expand' => $expand],
+            $this->owner->stripeOptions()
         );
     }
 }

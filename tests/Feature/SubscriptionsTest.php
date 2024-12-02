@@ -2,7 +2,7 @@
 
 namespace Laravel\Cashier\Tests\Feature;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use DateTime;
 use Illuminate\Support\Str;
 use Laravel\Cashier\Cashier;
@@ -54,11 +54,12 @@ class SubscriptionsTest extends FeatureTestCase
     {
         parent::setUpBeforeClass();
 
-        static::$productId = static::$stripePrefix.'product-1'.Str::random(10);
-        static::$planId = static::$stripePrefix.'monthly-10-'.Str::random(10);
-        static::$otherPlanId = static::$stripePrefix.'monthly-10-'.Str::random(10);
-        static::$premiumPlanId = static::$stripePrefix.'monthly-20-premium-'.Str::random(10);
-        static::$couponId = static::$stripePrefix.'coupon-'.Str::random(10);
+        static::$productId = static::$stripePrefix . 'product-1' . Str::random(10);
+        static::$planId = static::$stripePrefix . 'monthly-10-' . Str::random(10);
+        static::$otherPlanId = static::$stripePrefix . 'monthly-10-' . Str::random(10);
+        static::$premiumPlanId =
+            static::$stripePrefix . 'monthly-20-premium-' . Str::random(10);
+        static::$couponId = static::$stripePrefix . 'coupon-' . Str::random(10);
 
         Product::create([
             'id' => static::$productId,
@@ -129,13 +130,17 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('subscriptions_can_be_created');
 
         // Create Subscription
-        $user->newSubscription('main', static::$planId)
+        $user
+            ->newSubscription('main', static::$planId)
             ->withMetadata($metadata = ['order_id' => '8'])
             ->create('pm_card_visa');
 
         $this->assertEquals(1, count($user->subscriptions));
         $this->assertNotNull(($subscription = $user->subscription('main'))->stripe_id);
-        $this->assertSame($metadata, $subscription->asStripeSubscription()->metadata->toArray());
+        $this->assertSame(
+            $metadata,
+            $subscription->asStripeSubscription()->metadata->toArray()
+        );
 
         $this->assertTrue($user->subscribed('main'));
         $this->assertTrue($user->subscribedToPlan(static::$planId, 'main'));
@@ -214,13 +219,17 @@ class SubscriptionsTest extends FeatureTestCase
             'coupon' => static::$couponId,
         ]);
 
-        $this->assertEquals(static::$couponId, $subscription->asStripeSubscription()->discount->coupon->id);
+        $this->assertEquals(
+            static::$couponId,
+            $subscription->asStripeSubscription()->discount->coupon->id
+        );
     }
 
     public function test_swapping_subscription_and_preserving_quantity()
     {
         $user = $this->createCustomer('swapping_subscription_and_preserving_quantity');
-        $subscription = $user->newSubscription('main', static::$planId)
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
             ->quantity(5, static::$planId)
             ->create('pm_card_visa');
 
@@ -233,7 +242,8 @@ class SubscriptionsTest extends FeatureTestCase
     public function test_swapping_subscription_and_adopting_new_quantity()
     {
         $user = $this->createCustomer('swapping_subscription_and_adopting_new_quantity');
-        $subscription = $user->newSubscription('main', static::$planId)
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
             ->quantity(5, static::$planId)
             ->create('pm_card_visa');
 
@@ -245,18 +255,25 @@ class SubscriptionsTest extends FeatureTestCase
 
     public function test_declined_card_during_subscribing_results_in_an_exception()
     {
-        $user = $this->createCustomer('declined_card_during_subscribing_results_in_an_exception');
+        $user = $this->createCustomer(
+            'declined_card_during_subscribing_results_in_an_exception'
+        );
 
         try {
-            $user->newSubscription('main', static::$planId)->create('pm_card_chargeCustomerFail');
+            $user
+                ->newSubscription('main', static::$planId)
+                ->create('pm_card_chargeCustomerFail');
 
-            $this->fail('Expected exception '.PaymentFailure::class.' was not thrown.');
+            $this->fail('Expected exception ' . PaymentFailure::class . ' was not thrown.');
         } catch (PaymentFailure $e) {
             // Assert that the payment needs a valid payment method.
             $this->assertTrue($e->payment->requiresPaymentMethod());
 
             // Assert subscription was added to the customer.
-            $this->assertInstanceOf(Subscription::class, $subscription = $user->subscription('main'));
+            $this->assertInstanceOf(
+                Subscription::class,
+                $subscription = $user->subscription('main')
+            );
 
             // Assert subscription is incomplete.
             $this->assertTrue($subscription->incomplete());
@@ -265,18 +282,27 @@ class SubscriptionsTest extends FeatureTestCase
 
     public function test_next_action_needed_during_subscribing_results_in_an_exception()
     {
-        $user = $this->createCustomer('next_action_needed_during_subscribing_results_in_an_exception');
+        $user = $this->createCustomer(
+            'next_action_needed_during_subscribing_results_in_an_exception'
+        );
 
         try {
-            $user->newSubscription('main', static::$planId)->create('pm_card_threeDSecure2Required');
+            $user
+                ->newSubscription('main', static::$planId)
+                ->create('pm_card_threeDSecure2Required');
 
-            $this->fail('Expected exception '.PaymentActionRequired::class.' was not thrown.');
+            $this->fail(
+                'Expected exception ' . PaymentActionRequired::class . ' was not thrown.'
+            );
         } catch (PaymentActionRequired $e) {
             // Assert that the payment needs an extra action.
             $this->assertTrue($e->payment->requiresAction());
 
             // Assert subscription was added to the customer.
-            $this->assertInstanceOf(Subscription::class, $subscription = $user->subscription('main'));
+            $this->assertInstanceOf(
+                Subscription::class,
+                $subscription = $user->subscription('main')
+            );
 
             // Assert subscription is incomplete.
             $this->assertTrue($subscription->incomplete());
@@ -285,9 +311,13 @@ class SubscriptionsTest extends FeatureTestCase
 
     public function test_declined_card_during_plan_swap_results_in_an_exception()
     {
-        $user = $this->createCustomer('declined_card_during_plan_swap_results_in_an_exception');
+        $user = $this->createCustomer(
+            'declined_card_during_plan_swap_results_in_an_exception'
+        );
 
-        $subscription = $user->newSubscription('main', static::$planId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
+            ->create('pm_card_visa');
 
         // Set a faulty card as the customer's default payment method.
         $user->updateDefaultPaymentMethod('pm_card_chargeCustomerFail');
@@ -296,7 +326,7 @@ class SubscriptionsTest extends FeatureTestCase
             // Attempt to swap and pay with a faulty card.
             $subscription = $subscription->swapAndInvoice(static::$premiumPlanId);
 
-            $this->fail('Expected exception '.PaymentFailure::class.' was not thrown.');
+            $this->fail('Expected exception ' . PaymentFailure::class . ' was not thrown.');
         } catch (PaymentFailure $e) {
             // Assert that the payment needs a valid payment method.
             $this->assertTrue($e->payment->requiresPaymentMethod());
@@ -311,9 +341,13 @@ class SubscriptionsTest extends FeatureTestCase
 
     public function test_next_action_needed_during_plan_swap_results_in_an_exception()
     {
-        $user = $this->createCustomer('next_action_needed_during_plan_swap_results_in_an_exception');
+        $user = $this->createCustomer(
+            'next_action_needed_during_plan_swap_results_in_an_exception'
+        );
 
-        $subscription = $user->newSubscription('main', static::$planId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
+            ->create('pm_card_visa');
 
         // Set a card that requires a next action as the customer's default payment method.
         $user->updateDefaultPaymentMethod('pm_card_threeDSecure2Required');
@@ -322,7 +356,9 @@ class SubscriptionsTest extends FeatureTestCase
             // Attempt to swap and pay with a faulty card.
             $subscription = $subscription->swapAndInvoice(static::$premiumPlanId);
 
-            $this->fail('Expected exception '.PaymentActionRequired::class.' was not thrown.');
+            $this->fail(
+                'Expected exception ' . PaymentActionRequired::class . ' was not thrown.'
+            );
         } catch (PaymentActionRequired $e) {
             // Assert that the payment needs an extra action.
             $this->assertTrue($e->payment->requiresAction());
@@ -337,9 +373,13 @@ class SubscriptionsTest extends FeatureTestCase
 
     public function test_downgrade_with_faulty_card_does_not_incomplete_subscription()
     {
-        $user = $this->createCustomer('downgrade_with_faulty_card_does_not_incomplete_subscription');
+        $user = $this->createCustomer(
+            'downgrade_with_faulty_card_does_not_incomplete_subscription'
+        );
 
-        $subscription = $user->newSubscription('main', static::$premiumPlanId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$premiumPlanId)
+            ->create('pm_card_visa');
 
         // Set a card that requires a next action as the customer's default payment method.
         $user->updateDefaultPaymentMethod('pm_card_chargeCustomerFail');
@@ -356,9 +396,13 @@ class SubscriptionsTest extends FeatureTestCase
 
     public function test_downgrade_with_3d_secure_does_not_incomplete_subscription()
     {
-        $user = $this->createCustomer('downgrade_with_3d_secure_does_not_incomplete_subscription');
+        $user = $this->createCustomer(
+            'downgrade_with_3d_secure_does_not_incomplete_subscription'
+        );
 
-        $subscription = $user->newSubscription('main', static::$premiumPlanId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$premiumPlanId)
+            ->create('pm_card_visa');
 
         // Set a card that requires a next action as the customer's default payment method.
         $user->updateDefaultPaymentMethod('pm_card_threeDSecure2Required');
@@ -378,7 +422,8 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('creating_subscription_with_coupons');
 
         // Create Subscription
-        $user->newSubscription('main', static::$planId)
+        $user
+            ->newSubscription('main', static::$planId)
             ->withCoupon(static::$couponId)
             ->create('pm_card_visa');
 
@@ -407,7 +452,8 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('creating_subscription_with_an_anchored_billing_cycle');
 
         // Create Subscription
-        $user->newSubscription('main', static::$planId)
+        $user
+            ->newSubscription('main', static::$planId)
             ->anchorBillingCycleOn(new DateTime('first day of next month'))
             ->create('pm_card_visa');
 
@@ -441,7 +487,8 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('creating_subscription_with_trial');
 
         // Create Subscription
-        $user->newSubscription('main', static::$planId)
+        $user
+            ->newSubscription('main', static::$planId)
             ->trialDays(7)
             ->create('pm_card_visa');
 
@@ -469,12 +516,15 @@ class SubscriptionsTest extends FeatureTestCase
         $this->assertTrue($subscription->onTrial());
         $this->assertFalse($subscription->recurring());
         $this->assertFalse($subscription->ended());
-        $this->assertEquals(Carbon::today()->addDays(7)->day, $subscription->trial_ends_at->day);
+        $this->assertEquals(
+            Carbon::today()->addDays(7)->day,
+            $subscription->trial_ends_at->day
+        );
     }
 
     public function test_user_without_subscriptions_can_return_its_generic_trial_end_date()
     {
-        $user = new User;
+        $user = new User();
         $user->trial_ends_at = $tomorrow = Carbon::tomorrow();
 
         $this->assertTrue($user->onGenericTrial());
@@ -486,7 +536,8 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('creating_subscription_with_explicit_trial');
 
         // Create Subscription
-        $user->newSubscription('main', static::$planId)
+        $user
+            ->newSubscription('main', static::$planId)
             ->trialUntil(Carbon::tomorrow()->hour(3)->minute(15))
             ->create('pm_card_visa');
 
@@ -496,7 +547,10 @@ class SubscriptionsTest extends FeatureTestCase
         $this->assertTrue($subscription->onTrial());
         $this->assertFalse($subscription->recurring());
         $this->assertFalse($subscription->ended());
-        $this->assertEquals(Carbon::tomorrow()->hour(3)->minute(15), $subscription->trial_ends_at);
+        $this->assertEquals(
+            Carbon::tomorrow()->hour(3)->minute(15),
+            $subscription->trial_ends_at
+        );
 
         // Cancel Subscription
         $subscription->cancel();
@@ -514,14 +568,19 @@ class SubscriptionsTest extends FeatureTestCase
         $this->assertTrue($subscription->onTrial());
         $this->assertFalse($subscription->recurring());
         $this->assertFalse($subscription->ended());
-        $this->assertEquals(Carbon::tomorrow()->hour(3)->minute(15), $subscription->trial_ends_at);
+        $this->assertEquals(
+            Carbon::tomorrow()->hour(3)->minute(15),
+            $subscription->trial_ends_at
+        );
     }
 
     public function test_subscription_changes_can_be_prorated()
     {
         $user = $this->createCustomer('subscription_changes_can_be_prorated');
 
-        $subscription = $user->newSubscription('main', static::$premiumPlanId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$premiumPlanId)
+            ->create('pm_card_visa');
 
         $this->assertEquals(2000, ($invoice = $user->invoices()->first())->rawTotal());
 
@@ -546,9 +605,12 @@ class SubscriptionsTest extends FeatureTestCase
 
     public function test_trial_remains_when_customer_is_invoiced_immediately_on_swap()
     {
-        $user = $this->createCustomer('trial_remains_when_customer_is_invoiced_immediately_on_swap');
+        $user = $this->createCustomer(
+            'trial_remains_when_customer_is_invoiced_immediately_on_swap'
+        );
 
-        $subscription = $user->newSubscription('main', static::$planId)
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
             ->trialDays(5)
             ->create('pm_card_visa');
 
@@ -563,7 +625,8 @@ class SubscriptionsTest extends FeatureTestCase
     {
         $user = $this->createCustomer('trial_on_swap_is_skipped_when_explicitly_asked_to');
 
-        $subscription = $user->newSubscription('main', static::$planId)
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
             ->trialDays(5)
             ->create('pm_card_visa');
 
@@ -578,12 +641,23 @@ class SubscriptionsTest extends FeatureTestCase
     {
         $user = $this->createCustomer('no_prorate_on_subscription_create');
 
-        $subscription = $user->newSubscription('main', static::$planId)->noProrate()->create('pm_card_visa', [], [
-            'collection_method' => 'send_invoice',
-            'days_until_due' => 30,
-            'backdate_start_date' => Carbon::now()->addDays(5)->subYear()->startOfDay()->unix(),
-            'billing_cycle_anchor' => Carbon::now()->addDays(5)->startOfDay()->unix(),
-        ]);
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
+            ->noProrate()
+            ->create(
+                'pm_card_visa',
+                [],
+                [
+                    'collection_method' => 'send_invoice',
+                    'days_until_due' => 30,
+                    'backdate_start_date' => Carbon::now()
+                        ->addDays(5)
+                        ->subYear()
+                        ->startOfDay()
+                        ->unix(),
+                    'billing_cycle_anchor' => Carbon::now()->addDays(5)->startOfDay()->unix(),
+                ]
+            );
 
         $this->assertEquals(static::$planId, $subscription->stripe_plan);
         $this->assertTrue($subscription->active());
@@ -598,12 +672,23 @@ class SubscriptionsTest extends FeatureTestCase
     {
         $user = $this->createCustomer('always_invoice_after_no_prorate');
 
-        $subscription = $user->newSubscription('main', static::$planId)->noProrate()->create('pm_card_visa', [], [
-            'collection_method' => 'send_invoice',
-            'days_until_due' => 30,
-            'backdate_start_date' => Carbon::now()->addDays(5)->subYear()->startOfDay()->unix(),
-            'billing_cycle_anchor' => Carbon::now()->addDays(5)->startOfDay()->unix(),
-        ]);
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
+            ->noProrate()
+            ->create(
+                'pm_card_visa',
+                [],
+                [
+                    'collection_method' => 'send_invoice',
+                    'days_until_due' => 30,
+                    'backdate_start_date' => Carbon::now()
+                        ->addDays(5)
+                        ->subYear()
+                        ->startOfDay()
+                        ->unix(),
+                    'billing_cycle_anchor' => Carbon::now()->addDays(5)->startOfDay()->unix(),
+                ]
+            );
 
         $this->assertEquals(static::$planId, $subscription->stripe_plan);
         $this->assertCount(0, $user->invoices());
@@ -622,21 +707,27 @@ class SubscriptionsTest extends FeatureTestCase
     {
         $user = $this->createCustomer('trials_can_be_extended');
 
-        $subscription = $user->newSubscription('main', static::$planId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
+            ->create('pm_card_visa');
 
         $this->assertNull($subscription->trial_ends_at);
 
         $subscription->extendTrial($trialEndsAt = now()->addDays()->floor());
 
         $this->assertTrue($trialEndsAt->equalTo($subscription->trial_ends_at));
-        $this->assertEquals($subscription->asStripeSubscription()->trial_end, $trialEndsAt->getTimestamp());
+        $this->assertEquals(
+            $subscription->asStripeSubscription()->trial_end,
+            $trialEndsAt->getTimestamp()
+        );
     }
 
     public function test_trials_can_be_ended()
     {
         $user = $this->createCustomer('trials_can_be_ended');
 
-        $subscription = $user->newSubscription('main', static::$planId)
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
             ->trialDays(10)
             ->create('pm_card_visa');
 
@@ -747,7 +838,10 @@ class SubscriptionsTest extends FeatureTestCase
 
         Cashier::keepPastDueSubscriptionsActive();
 
-        $subscription->update(['ends_at' => null, 'stripe_status' => StripeSubscription::STATUS_PAST_DUE]);
+        $subscription->update([
+            'ends_at' => null,
+            'stripe_status' => StripeSubscription::STATUS_PAST_DUE,
+        ]);
 
         $this->assertTrue($subscription->active());
         $this->assertTrue($user->subscriptions()->active()->exists());
@@ -761,9 +855,13 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('retrieve_the_latest_payment_for_a_subscription');
 
         try {
-            $user->newSubscription('main', static::$planId)->create('pm_card_threeDSecure2Required');
+            $user
+                ->newSubscription('main', static::$planId)
+                ->create('pm_card_threeDSecure2Required');
 
-            $this->fail('Expected exception '.PaymentActionRequired::class.' was not thrown.');
+            $this->fail(
+                'Expected exception ' . PaymentActionRequired::class . ' was not thrown.'
+            );
         } catch (PaymentActionRequired $e) {
             $subscription = $user->refresh()->subscription('main');
 
@@ -777,10 +875,15 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('subscriptions_with_tax_rates_can_be_created');
         $user->taxRates = [self::$taxRateId];
 
-        $subscription = $user->newSubscription('main', static::$planId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
+            ->create('pm_card_visa');
         $stripeSubscription = $subscription->asStripeSubscription();
 
-        $this->assertEquals([self::$taxRateId], [$stripeSubscription->default_tax_rates[0]->id]);
+        $this->assertEquals(
+            [self::$taxRateId],
+            [$stripeSubscription->default_tax_rates[0]->id]
+        );
     }
 
     public function test_subscriptions_with_options_can_be_created()
@@ -788,9 +891,13 @@ class SubscriptionsTest extends FeatureTestCase
         $user = $this->createCustomer('subscriptions_with_options_can_be_created');
 
         $backdateStartDate = now()->subMonth()->getTimestamp();
-        $subscription = $user->newSubscription('main', static::$planId)->create('pm_card_visa', [], [
-            'backdate_start_date' => $backdateStartDate,
-        ]);
+        $subscription = $user->newSubscription('main', static::$planId)->create(
+            'pm_card_visa',
+            [],
+            [
+                'backdate_start_date' => $backdateStartDate,
+            ]
+        );
         $stripeSubscription = $subscription->asStripeSubscription();
 
         $this->assertEquals($backdateStartDate, $stripeSubscription->start_date);
@@ -836,12 +943,17 @@ class SubscriptionsTest extends FeatureTestCase
     {
         $user = $this->createCustomer('subscriptions_can_be_cancelled_at_a_specific_time');
 
-        $subscription = $user->newSubscription('main', static::$planId)->create('pm_card_visa');
+        $subscription = $user
+            ->newSubscription('main', static::$planId)
+            ->create('pm_card_visa');
 
         $subscription = $subscription->cancelAt($endsAt = now()->addMonths(3));
 
         $this->assertTrue($subscription->active());
         $this->assertSame($endsAt->timestamp, $subscription->ends_at->timestamp);
-        $this->assertSame($endsAt->timestamp, $subscription->asStripeSubscription()->cancel_at);
+        $this->assertSame(
+            $endsAt->timestamp,
+            $subscription->asStripeSubscription()->cancel_at
+        );
     }
 }

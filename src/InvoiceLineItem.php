@@ -2,7 +2,7 @@
 
 namespace Laravel\Cashier;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use JsonSerializable;
@@ -94,7 +94,7 @@ class InvoiceLineItem implements Arrayable, Jsonable, JsonSerializable
      */
     protected function calculateTaxPercentageByTaxRate($inclusive)
     {
-        if (! $this->item->tax_rates) {
+        if (!$this->item->tax_rates) {
             return 0;
         }
 
@@ -115,7 +115,7 @@ class InvoiceLineItem implements Arrayable, Jsonable, JsonSerializable
      */
     protected function calculateTaxPercentageByTaxAmount($inclusive)
     {
-        if (! $this->item->tax_amounts) {
+        if (!$this->item->tax_amounts) {
             return 0;
         }
 
@@ -136,10 +136,10 @@ class InvoiceLineItem implements Arrayable, Jsonable, JsonSerializable
     public function hasTaxRates()
     {
         if ($this->invoice->isNotTaxExempt()) {
-            return ! empty($this->item->tax_amounts);
+            return !empty($this->item->tax_amounts);
         }
 
-        return ! empty($this->item->tax_rates);
+        return !empty($this->item->tax_rates);
     }
 
     /**
@@ -169,7 +169,7 @@ class InvoiceLineItem implements Arrayable, Jsonable, JsonSerializable
     /**
      * Get a Carbon instance for the start date.
      *
-     * @return \Carbon\Carbon
+     * @return \Illuminate\Support\Carbon;
      */
     public function startDateAsCarbon()
     {
@@ -181,7 +181,7 @@ class InvoiceLineItem implements Arrayable, Jsonable, JsonSerializable
     /**
      * Get a Carbon instance for the end date.
      *
-     * @return \Carbon\Carbon
+     * @return \Illuminate\Support\Carbon;
      */
     public function endDateAsCarbon()
     {

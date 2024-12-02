@@ -2,7 +2,7 @@
 
 namespace Laravel\Cashier\Tests\Unit;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use Carbon\CarbonTimeZone;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\Tests\Fixtures\User;

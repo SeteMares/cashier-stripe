@@ -2,7 +2,7 @@
 
 namespace Laravel\Cashier;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use DateTimeInterface;
 use Exception;
 use Illuminate\Support\Arr;
@@ -40,7 +40,7 @@ class SubscriptionBuilder
     /**
      * The date and time the trial will expire.
      *
-     * @var \Carbon\Carbon|\Carbon\CarbonInterface|null
+     * @var \Illuminate\Support\Carbon|\Carbon\CarbonInterface|null
      */
     protected $trialExpires;
 
@@ -149,7 +149,9 @@ class SubscriptionBuilder
     {
         if (is_null($plan)) {
             if (count($this->items) > 1) {
-                throw new InvalidArgumentException('Plan is required when creating multi-plan subscriptions.');
+                throw new InvalidArgumentException(
+                    'Plan is required when creating multi-plan subscriptions.'
+                );
             }
 
             $plan = Arr::first($this->items)['price'];
@@ -174,7 +176,7 @@ class SubscriptionBuilder
     /**
      * Specify the ending date of the trial.
      *
-     * @param  \Carbon\Carbon|\Carbon\CarbonInterface  $trialUntil
+     * @param  \Illuminate\Support\Carbon|\Carbon\CarbonInterface  $trialUntil
      * @return $this
      */
     public function trialUntil($trialUntil)
@@ -291,8 +293,11 @@ class SubscriptionBuilder
      * @throws \Laravel\Cashier\Exceptions\PaymentActionRequired
      * @throws \Laravel\Cashier\Exceptions\PaymentFailure
      */
-    public function create($paymentMethod = null, array $customerOptions = [], array $subscriptionOptions = [])
-    {
+    public function create(
+        $paymentMethod = null,
+        array $customerOptions = [],
+        array $subscriptionOptions = []
+    ) {
         if (empty($this->items)) {
             throw new Exception('At least one plan is required when starting subscriptions.');
         }
@@ -313,9 +318,7 @@ class SubscriptionBuilder
         $subscription = $this->createSubscription($stripeSubscription);
 
         if ($subscription->hasIncompletePayment()) {
-            (new Payment(
-                $stripeSubscription->latest_invoice->payment_intent
-            ))->validate();
+            (new Payment($stripeSubscription->latest_invoice->payment_intent))->validate();
         }
 
         return $subscription;
@@ -340,7 +343,7 @@ class SubscriptionBuilder
             'stripe_status' => $stripeSubscription->status,
             'stripe_plan' => $isSinglePlan ? $firstItem->plan->id : null,
             'quantity' => $isSinglePlan ? $firstItem->quantity : null,
-            'trial_ends_at' => ! $this->skipTrial ? $this->trialExpires : null,
+            'trial_ends_at' => !$this->skipTrial ? $this->trialExpires : null,
             'ends_at' => null,
         ]);
 
@@ -369,31 +372,40 @@ class SubscriptionBuilder
             throw new Exception('At least one plan is required when starting subscriptions.');
         }
 
-        if (! $this->skipTrial && $this->trialExpires) {
+        if (!$this->skipTrial && $this->trialExpires) {
             // Checkout Sessions are active for 24 hours after their creation and within that time frame the customer
             // can complete the payment at any time. Stripe requires the trial end at least 48 hours in the future
             // so that there is still at least a one day trial if your customer pays at the end of the 24 hours.
             // We also add 10 seconds of extra time to account for any delay with an API request onto Stripe.
             $minimumTrialPeriod = Carbon::now()->addHours(48)->addSeconds(10);
 
-            $trialEnd = $this->trialExpires->gt($minimumTrialPeriod) ? $this->trialExpires : $minimumTrialPeriod;
+            $trialEnd = $this->trialExpires->gt($minimumTrialPeriod)
+                ? $this->trialExpires
+                : $minimumTrialPeriod;
         } else {
             $trialEnd = null;
         }
 
-        return Checkout::create($this->owner, array_merge([
-            'mode' => 'subscription',
-            'line_items' => collect($this->items)->values()->all(),
-            'allow_promotion_codes' => $this->allowPromotionCodes,
-            'discounts' => [
-                ['coupon' => $this->coupon],
-            ],
-            'subscription_data' => [
-                'default_tax_rates' => $this->getTaxRatesForPayload(),
-                'trial_end' => $trialEnd ? $trialEnd->getTimestamp() : null,
-                'metadata' => array_merge($this->metadata, ['name' => $this->name]),
-            ],
-        ], $sessionOptions), $customerOptions);
+        return Checkout::create(
+            $this->owner,
+            array_merge(
+                [
+                    'mode' => 'subscription',
+                    'line_items' => collect($this->items)
+                        ->values()
+                        ->all(),
+                    'allow_promotion_codes' => $this->allowPromotionCodes,
+                    'discounts' => [['coupon' => $this->coupon]],
+                    'subscription_data' => [
+                        'default_tax_rates' => $this->getTaxRatesForPayload(),
+                        'trial_end' => $trialEnd ? $trialEnd->getTimestamp() : null,
+                        'metadata' => array_merge($this->metadata, ['name' => $this->name]),
+                    ],
+                ],
+                $sessionOptions
+            ),
+            $customerOptions
+        );
     }
 
     /**
@@ -426,7 +438,9 @@ class SubscriptionBuilder
             'coupon' => $this->coupon,
             'expand' => ['latest_invoice.payment_intent'],
             'metadata' => $this->metadata,
-            'items' => collect($this->items)->values()->all(),
+            'items' => collect($this->items)
+                ->values()
+                ->all(),
             'payment_behavior' => $this->paymentBehavior(),
             'promotion_code' => $this->promotionCode,
             'proration_behavior' => $this->prorateBehavior(),
