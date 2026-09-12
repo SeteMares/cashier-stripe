@@ -16,7 +16,7 @@
     "require": {
         "php": "^8",
         "ext-json": "*",
-        "dompdf/dompdf": "^0.8.6|^1.0.1|^2.0",
+        "dompdf/dompdf": "^2.0|^3.0",
         "illuminate/console": "*",
         "illuminate/contracts": "*",
         "illuminate/database": "*",
